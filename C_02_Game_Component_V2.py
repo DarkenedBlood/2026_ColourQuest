@@ -3,14 +3,14 @@ import random
 from tkinter import *
 from functools import partial # to prevent unwanted windows
 
-
 # helper functions go here
 def get_colours():
     """
     Retrieves colours from csv file
-    :return: list of colours which where each list item has the
-    colour name, associated score and foreground colour for the text
+    :return:  list of colours which where each list item has the
+    colours name, associated score and foreground colour for the text
     """
+
     # Retrieve colours from csv file and put them in a list
     file = open("00_colour_list_hex_v3(in).csv", "r")
     all_colours = list(csv.reader(file, delimiter=","))
@@ -26,14 +26,15 @@ def get_round_colours():
     Choose four colours from larger list ensuring that the scores are all different.
     :return: list of colours and score to beat (median of scores)
     """
-    all_colours_list = get_colours()
+
+    all_colour_list = get_colours()
 
     round_colours = []
     colour_scores = []
 
     # loop until we have four colours with different scores
     while len(round_colours) < 4:
-        potential_colour = random.choice(all_colours_list)
+        potential_colour = random.choice(all_colour_list)
 
         # Get the score and check it's not a duplicate
         if potential_colour[1] not in colour_scores:
@@ -42,20 +43,17 @@ def get_round_colours():
             # make score an integer and add it to the list of scores
             colour_scores.append(potential_colour[1])
 
-    print(round_colours)
-    print(colour_scores)
-
-    # find target score (median)
 
     # change scores to integers
     int_scores = [int(x) for x in colour_scores]
 
-    # get median score / target score
+    # Get median score / target score
     int_scores.sort()
     median = (int_scores[1] + int_scores[2]) / 2
     median = rounds_ans(median)
 
     return round_colours, median
+
 
 def rounds_ans(val):
     """
@@ -68,7 +66,6 @@ def rounds_ans(val):
     return int(raw_rounded)
 
 
-# Classes start here
 class StartGame:
     """
     Initial Game Interface (asks users how many rounds they
@@ -105,6 +102,22 @@ class Play:
     """
 
     def __init__(self, how_many):
+
+        # Integers / String Variables
+        self.target_score = IntVar()
+
+        # rounds played - start with zero
+        self.rounds_played = IntVar()
+        self.rounds_played.set(0)
+
+        self.rounds_wanted = IntVar()
+        self.rounds_wanted.set(how_many)
+
+        # Colour lists and score list
+        self.round_colour_list = []
+        self.all_scores_list = []
+        self.all_medians_list = []
+
         self.play_box = Toplevel()
 
         self.game_frame = Frame(self.play_box)
@@ -118,7 +131,7 @@ class Play:
             ["Round # of #", ("Arial", 16, "bold"), None, 0],
             ["Score to beat", body_font, "#FFF2CC", 1],
             ["Choose a colour below. Good luck. 🍀", body_font, "#D5E8D4", 2],
-            ["You chose, result", body_font, "#D5E8D4", 3]
+            ["You chose, result", body_font, "#D5E8D4", 4]
         ]
 
         play_labels_ref = []
@@ -127,7 +140,7 @@ class Play:
                                     bg=item[2], wraplength=300, justify="left")
             self.make_label.grid(row=item[3], pady=10, padx=10)
 
-            play_labels_ref.append(item)
+            play_labels_ref.append(self.make_label)
 
         # Retrieve Labels so they can be configured later
         self.heading_label = play_labels_ref[0]
@@ -138,6 +151,10 @@ class Play:
         self.colour_frame = Frame(self.game_frame)
         self.colour_frame.grid(row=3)
 
+        self.colour_button_ref = []
+        self.button_colours_list = []
+
+
         # create four buttons in a 2 x 2 grid
         for item in range(0, 4):
             self.colour_button = Button(self.colour_frame, font=body_font,
@@ -145,6 +162,8 @@ class Play:
             self.colour_button.grid(row=item // 2,
                                     column=item % 2,
                                     padx=5, pady=5)
+
+            self.colour_button_ref.append(self.colour_button)
 
         # Frame to hold hints and stats buttons
         self.hints_stats_frame = Frame(self.game_frame)
@@ -167,6 +186,42 @@ class Play:
             make_control_button.grid(row=item[5], column=item[6], padx=5, pady=5)
 
             control_ref_list.append(make_control_button)
+
+        # Once interface has been created, invoke new
+        # round function for the first round.
+        self.new_round()
+
+    def new_round(self):
+        """
+        Chooses four colours, works out median for score to beat. Configures
+        buttons with chosen colours.
+        """
+
+        # retrieve number of rounds played, add one to it and configure heading
+        rounds_played = self.rounds_played.get()
+        rounds_played += 1
+        self.rounds_played.set(rounds_played)
+
+        rounds_wanted = self.rounds_wanted.get()
+
+        # get round colours and median score...
+        self.round_colour_list, median = get_round_colours()
+
+        # Set target score as median (for later comparison)
+        self.target_score.set(median)
+
+        # Update heading, and score to beat labels. "Hide" results label
+        self.heading_label.config(text=f"Round {rounds_played} of {rounds_wanted}")
+        self.target_label.config(text=f"Target Score: {median}", font=("Arial", 14, "bold"))
+        self.results_label.config(text=f"{'=' * 7}", bg="#F0F0F0")
+
+        # configure buttons using foreground and background colours from list
+        # enable colour buttons (disabled at the end of the last round)
+        for count, item in enumerate(self.colour_button_ref):
+            item.config(fg=self.round_colour_list[count][2],
+                        bg=self.round_colour_list[count][0],
+                        text=self.round_colour_list[count][0], state=NORMAL)
+
 
 
     def close_play(self):
