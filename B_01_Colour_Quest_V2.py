@@ -143,7 +143,7 @@ class StartGame:
         # checks that amount to be converted is a number above absolute zero
         try:
             rounds_wanted = int(rounds_wanted)
-            if rounds_wanted > 1:
+            if rounds_wanted > 0:
                 # Invoke Play Class (and take across number of rounds)
                 self.num_rounds_entry.delete(0, END)
                 self.choose_label.config(text="How many rounds do you want to play?")
@@ -193,6 +193,8 @@ class Play:
         self.game_frame = Frame(self.play_box)
         self.game_frame.grid(padx=10, pady=10)
 
+        self.play_box.protocol('WM_DELETE_WINDOW', root.destroy)
+
         # body font for most labels...
         body_font = ("Arial", 12)
 
@@ -215,6 +217,7 @@ class Play:
         # Retrieve Labels so they can be configured later
         self.heading_label = play_labels_ref[0]
         self.target_label = play_labels_ref[1]
+        self.choose_label = play_labels_ref[2]
         self.results_label = play_labels_ref[3]
 
         # set up colour buttons...
@@ -278,7 +281,6 @@ class Play:
 
         # retrieve number of rounds played, add one to it and configure heading
         rounds_played = self.rounds_played.get()
-        rounds_played += 1
         self.rounds_played.set(rounds_played)
 
         rounds_wanted = self.rounds_wanted.get()
@@ -294,7 +296,7 @@ class Play:
 
 
         # Update heading, and score to beat labels. "Hide" results label
-        self.heading_label.config(text=f"Round {rounds_played} of {rounds_wanted}")
+        self.heading_label.config(text=f"Round {rounds_played + 1} of {rounds_wanted}")
         self.target_label.config(text=f"Target Score: {median}", font=("Arial", 14, "bold"))
         self.results_label.config(text=f"{'=' * 7}", bg="#F0F0F0")
 
@@ -319,6 +321,12 @@ class Play:
         # Get user score and colour based on button press...
         score = int(self.round_colour_list[user_choice][1])
 
+        rounds_played = self.rounds_played.get()
+        rounds_played += 1
+        self.rounds_played.set(rounds_played)
+
+        rounds_won = self.rounds_won.get()
+
         # alternate way to get button name. Good for if buttons have been scrambled
         colour_name = self.colour_button_ref[user_choice].cget('text')
 
@@ -341,21 +349,31 @@ class Play:
 
         self.results_label.config(text=result_text, bg=result_bg)
 
-        # printing area to generate test data for stats (delete when done)
-        print("all scores:", self.all_scores_list)
-        print("highest scores:", self.all_high_scores_list)
-
         # enable stats & next buttons, disable colour buttons
         self.next_button.config(state=NORMAL)
         self.stats_button.config(state=NORMAL)
 
         # check to see if game is over
-        rounds_played = self.rounds_played.get()
         rounds_wanted = self.rounds_wanted.get()
 
+        # Code for when the game ends
         if rounds_played == rounds_wanted:
+
+            # work out success rate
+            success_rate = rounds_won / rounds_played * 100
+            success_string = (f"Success Rate: "
+                              f"{rounds_won} / {rounds_played} "
+                              f"({success_rate:.0f}%)")
+
+            # Configure 'end game' labels / buttons
+            self.heading_label.config(text="Game Over")
+            self.target_label.config(text=success_string)
+            self.choose_label.config(text="Please click the stats "
+                                          "button for more info")
             self.next_button.config(state=DISABLED, text="Game Over")
-            self.end_game_button.config(text="Play Again", bg="#006600")
+            self.stats_button.config(bg="#990000")
+            self.end_game_button.config(text="Play Again", bg="#006600",
+                                        compound="right")
 
         for item in self.colour_button_ref:
             item.config(state=DISABLED)
@@ -371,7 +389,8 @@ class Play:
         Displays hints for playing game
         :return:
         """
-        DisplayHints(self)
+        rounds_played = self.rounds_played.get()
+        DisplayHints(self, rounds_played)
 
     def to_stats(self):
         """
@@ -402,8 +421,10 @@ class Stats:
 
         self.stats_box = Toplevel()
 
-        # disable stats button
+        # disable buttons
         partner.stats_button.config(state=DISABLED)
+        partner.hints_button.config(state=DISABLED)
+        partner.end_game_button.config(state=DISABLED)
 
         # If users press cross at top, closes stats and
         # 'releases' stats button
@@ -489,6 +510,8 @@ class Stats:
         """
         # put stats button back to normal
         partner.stats_button.config(state=NORMAL)
+        partner.end_game_button.config(state=NORMAL)
+        partner.hints_button.config(state=NORMAL)
         self.stats_box.destroy()
 
 
@@ -497,13 +520,16 @@ class DisplayHints:
     Displays hints for colour quest game
     """
 
-    def __init__(self, partner):
+    def __init__(self, partner, rounds_played):
         # setup dialogue box and background colour
         background = "#ffe6cc"
         self.help_box = Toplevel()
+        self.rounds_played = rounds_played
 
         # disable help button
         partner.hints_button.config(state=DISABLED)
+        partner.stats_button.config(state=DISABLED)
+        partner.end_game_button.config(state=DISABLED)
 
         # If users press cross at top, closes help and
         # 'releases' help button
@@ -554,8 +580,14 @@ class DisplayHints:
         """
         Closes help dialogue box (and enables help button)
         """
-        # put help button back to normal
+
+        # put buttons back to normal
+        partner.end_game_button.config(state=NORMAL)
         partner.hints_button.config(state=NORMAL)
+
+        if self.rounds_played >= 1:
+            partner.stats_button.config(state=NORMAL)
+
         self.help_box.destroy()
 
 
